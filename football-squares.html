@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lions Football Squares</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        table { border-collapse: collapse; width: 100%; }
+        td, th { border: 1px solid #d1d5db; width: 9%; height: 75px; text-align: center; position: relative; }
+        th { background-color: #f3f4f6; font-weight: bold; font-size: 1.2rem; }
+        .grid-header-away { background-color: #1e3a8a; color: white; }
+        .grid-header-home { background-color: #991b1b; color: white; }
+        .badge { position: absolute; font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 999px; color: white; }
+        .badge-q1 { top: 2px; right: 2px; background-color: #3b82f6; } 
+        .badge-q2 { bottom: 2px; right: 2px; background-color: #22c55e; } 
+        .badge-q3 { top: 2px; left: 2px; background-color: #eab308; color: black; } 
+        .badge-final { bottom: 2px; left: 2px; background-color: #ef4444; } 
+    </style>
+</head>
+<body class="bg-gray-100 font-sans p-4 min-h-screen">
+
+    <div class="max-w-screen-2xl mx-auto flex flex-col xl:flex-row gap-6">
+        
+        <!-- Left Side: Controls & Scoreboard -->
+        <div class="xl:w-1/4 flex flex-col gap-6">
+            
+            <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-blue-600">
+                <h1 class="text-2xl font-bold mb-4 text-blue-900">Lions Squares</h1>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-bold mb-2">Select Lions Game</label>
+                    <select id="game-select" class="w-full border p-2 rounded bg-gray-50" onchange="gameSelected()">
+                        <option value="">Fetching schedules from ESPN...</option>
+                    </select>
+                </div>
+                <div class="text-sm text-gray-600 italic">
+                    Grid numbers are automatically shuffled and synchronized for all players based on the selected game.
+                </div>
+            </div>
+
+            <!-- Live Scoreboard Panel -->
+            <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-gray-800 hidden" id="scoreboard-panel">
+                <h2 class="text-xl font-bold text-center mb-2">Game Scoreboard</h2>
+                <div class="text-center text-gray-600 text-sm mb-4" id="game-status">Loading status...</div>
+                
+                <div class="flex justify-between items-center mb-6 px-4">
+                    <div class="text-center w-1/2">
+                        <div class="text-sm font-bold text-gray-500">AWAY</div>
+                        <div class="text-2xl font-bold" id="sb-away-team">TEAM</div>
+                        <div class="text-4xl font-bold text-blue-800 mt-1" id="sb-away-score">0</div>
+                    </div>
+                    <div class="text-2xl font-bold text-gray-300">-</div>
+                    <div class="text-center w-1/2">
+                        <div class="text-sm font-bold text-gray-500">HOME</div>
+                        <div class="text-2xl font-bold" id="sb-home-team">TEAM</div>
+                        <div class="text-4xl font-bold text-red-800 mt-1" id="sb-home-score">0</div>
+                    </div>
+                </div>
+
+                <h3 class="font-bold text-gray-700 border-b pb-1 mb-2">Quarter Winners</h3>
+                <ul class="text-sm space-y-3">
+                    <li class="flex items-center justify-between">
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span> Q1 (<span id="q1-score">0-0</span>)</span>
+                        <span class="font-bold text-right" id="q1-winner">Pending</span>
+                    </li>
+                    <li class="flex items-center justify-between">
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span> Q2 (<span id="q2-score">0-0</span>)</span>
+                        <span class="font-bold text-right" id="q2-winner">Pending</span>
+                    </li>
+                    <li class="flex items-center justify-between">
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-yellow-400"></span> Q3 (<span id="q3-score">0-0</span>)</span>
+                        <span class="font-bold text-right" id="q3-winner">Pending</span>
+                    </li>
+                    <li class="flex items-center justify-between">
+                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span> Final (<span id="final-score">0-0</span>)</span>
+                        <span class="font-bold text-right" id="final-winner">Pending</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Right Side: The Grid -->
+        <div class="xl:w-3/4 bg-white p-6 rounded-lg shadow-lg overflow-x-auto">
+            <h2 class="text-xl font-bold text-center mb-1">Football Squares Grid</h2>
+            <div class="text-center text-sm mb-4">
+                <span class="text-blue-800 font-bold">Top Axis: Away Team</span> | <span class="text-red-800 font-bold">Left Axis: Home Team</span>
+            </div>
+            
+            <table id="squares-grid">
+                <!-- Javascript builds the grid here -->
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        let squaresData = {}; 
+        let rawSquareEntries = [];
+        let currentGameId = null;
+
+        function buildEmptyGrid() {
+            const table = document.getElementById('squares-grid');
+            table.innerHTML = ''; 
+            let headerRow = '<tr><td class="bg-gray-200 border-none"></td>';
+            for (let i = 0; i < 10; i++) headerRow += `<th class="grid-header-away">${i}</th>`;
+            headerRow += '</tr>';
+            table.innerHTML += headerRow;
+
+            for (let homeNum = 0; homeNum < 10; homeNum++) {
+                let row = `<tr><th class="grid-header-home">${homeNum}</th>`;
+                for (let awayNum = 0; awayNum < 10; awayNum++) {
+                    row += `
+                        <td id="cell-${homeNum}-${awayNum}">
+                            <div class="text-sm font-bold text-gray-800" id="owner-${homeNum}-${awayNum}"></div>
+                            <div class="text-xs text-gray-500 italic" id="player-${homeNum}-${awayNum}"></div>
+                        </td>
+                    `;
+                }
+                row += '</tr>';
+                table.innerHTML += row;
+            }
+        }
+
+        // Smart Seeded Randomizer ensuring everyone sees the exact same board for the same game
+        function seededRandom(seedStr) {
+            let h = 1779033703 ^ seedStr.length;
+            for(let i = 0; i < seedStr.length; i++) {
+                h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353);
+                h = h << 13 | h >>> 19;
+            }
+            let seed = h >>> 0;
+            return function() {
+                seed = (seed * 9301 + 49297) % 233280;
+                return seed / 233280;
+            };
+        }
+
+        function loadCSVAutomatically() {
+            Papa.parse("squares.csv", {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    let totalSquares = 0;
+                    rawSquareEntries = [];
+                    results.data.forEach(row => {
+                        let count = parseInt(row.Count, 10);
+                        if (!isNaN(count) && count > 0) {
+                            for (let i = 0; i < count; i++) {
+                                rawSquareEntries.push({ owner: row.Owner || "Unknown", player: row.Player || "" });
+                            }
+                            totalSquares += count;
+                        }
+                    });
+                    while (rawSquareEntries.length < 100) rawSquareEntries.push({ owner: "Unsold", player: "" });
+                    
+                    if (currentGameId) buildBoardForGame();
+                }
+            });
+        }
+
+        function buildBoardForGame() {
+            if (!currentGameId || rawSquareEntries.length === 0) return;
+
+            // Generate identical shuffle logic based on the ESPN Game ID
+            let randomGen = seededRandom(currentGameId.toString());
+            let coordinates = [];
+            for (let h = 0; h < 10; h++) {
+                for (let a = 0; a < 10; a++) coordinates.push({ home: h, away: a });
+            }
+
+            // Shuffle based on the Game ID
+            for (let i = coordinates.length - 1; i > 0; i--) {
+                const j = Math.floor(randomGen() * (i + 1));
+                [coordinates[i], coordinates[j]] = [coordinates[j], coordinates[i]];
+            }
+
+            squaresData = {};
+            for (let i = 0; i < 100; i++) {
+                let coord = coordinates[i];
+                let entry = rawSquareEntries[i];
+                squaresData[`${coord.home}-${coord.away}`] = entry;
+                
+                const ownerEl = document.getElementById(`owner-${coord.home}-${coord.away}`);
+                const playerEl = document.getElementById(`player-${coord.home}-${coord.away}`);
+                
+                if(entry.owner === "Unsold") {
+                    ownerEl.classList.replace("text-gray-800", "text-gray-400");
+                } else {
+                    ownerEl.classList.replace("text-gray-400", "text-gray-800");
+                }
+                if (ownerEl) ownerEl.innerText = entry.owner;
+                if (playerEl) playerEl.innerText = entry.player;
+            }
+        }
+
+        async function fetchLionsSchedule() {
+            const select = document.getElementById('game-select');
+            const yearsToFetch = [2025, 2026, 2027];
+            let allLionsGames = [];
+
+            for (let year of yearsToFetch) {
+                try {
+                    const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/det/schedule?season=${year}`);
+                    const data = await response.json();
+                    if (data.events && data.events.length > 0) allLionsGames = allLionsGames.concat(data.events);
+                } catch (error) {}
+            }
+
+            select.innerHTML = '<option value="">-- Select a Lions Game --</option>';
+            if (allLionsGames.length === 0) return;
+
+            allLionsGames.sort((a, b) => new Date(a.date) - new Date(b.date));
+            let autoSelectId = null;
+            const now = new Date();
+
+            allLionsGames.forEach(game => {
+                const comp = game.competitions[0];
+                const away = comp.competitors.find(c => c.homeAway === 'away');
+                const home = comp.competitors.find(c => c.homeAway === 'home');
+                
+                const option = document.createElement('option');
+                option.value = game.id;
+                option.innerText = `${new Date(game.date).toLocaleDateString()}: ${away.team.abbreviation} @ ${home.team.abbreviation} (${game.season.year})`;
+                select.appendChild(option);
+
+                if (comp.status.type.state === 'in') autoSelectId = game.id;
+                else if (!autoSelectId && new Date(game.date) < now) autoSelectId = game.id;
+            });
+
+            if (autoSelectId) {
+                select.value = autoSelectId;
+                gameSelected();
+            }
+        }
+
+        function gameSelected() {
+            currentGameId = document.getElementById('game-select').value;
+            if (currentGameId) {
+                document.getElementById('scoreboard-panel').classList.remove('hidden');
+                buildBoardForGame();
+                fetchLiveScores();
+            } else {
+                document.getElementById('scoreboard-panel').classList.add('hidden');
+            }
+        }
+
+        async function fetchLiveScores() {
+            if (!currentGameId) return;
+            try {
+                const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${currentGameId}`);
+                const data = await response.json();
+                const comp = data.header.competitions[0];
+                if (!comp) return;
+
+                const awayTeam = comp.competitors.find(c => c.homeAway === 'away');
+                const homeTeam = comp.competitors.find(c => c.homeAway === 'home');
+                const status = comp.status;
+                
+                document.getElementById('sb-away-team').innerText = awayTeam.team.abbreviation || "AWAY";
+                document.getElementById('sb-home-team').innerText = homeTeam.team.abbreviation || "HOME";
+                document.getElementById('sb-away-score').innerText = awayTeam.score || "0";
+                document.getElementById('sb-home-score').innerText = homeTeam.score || "0";
+                document.getElementById('game-status').innerText = status.type.detail;
+
+                clearBadges();
+
+                const aLines = awayTeam.linescores || [];
+                const hLines = homeTeam.linescores || [];
+                let aTotal = 0, hTotal = 0;
+                
+                if (aLines.length >= 1) {
+                    aTotal += parseInt(aLines[0].displayValue || aLines[0].value || 0); 
+                    hTotal += parseInt(hLines[0].displayValue || hLines[0].value || 0);
+                    processQuarterWin(hTotal, aTotal, "q1", "Q1");
+                }
+                if (aLines.length >= 2) {
+                    aTotal += parseInt(aLines[1].displayValue || aLines[1].value || 0); 
+                    hTotal += parseInt(hLines[1].displayValue || hLines[1].value || 0);
+                    processQuarterWin(hTotal, aTotal, "q2", "Q2");
+                }
+                if (aLines.length >= 3) {
+                    aTotal += parseInt(aLines[2].displayValue || aLines[2].value || 0); 
+                    hTotal += parseInt(hLines[2].displayValue || hLines[2].value || 0);
+                    processQuarterWin(hTotal, aTotal, "q3", "Q3");
+                }
+                if (status.type.completed) {
+                    processQuarterWin(parseInt(homeTeam.score || 0), parseInt(awayTeam.score || 0), "final", "Final");
+                }
+            } catch (error) {}
+        }
+
+        function processQuarterWin(homeScore, awayScore, qKey, badgeLabel) {
+            const hDigit = homeScore % 10;
+            const aDigit = awayScore % 10;
+            document.getElementById(`${qKey}-score`).innerText = `${awayScore}-${homeScore}`;
+            
+            const ownerObj = squaresData[`${hDigit}-${aDigit}`];
+            if (ownerObj && ownerObj.owner) {
+                document.getElementById(`${qKey}-winner`).innerText = `${ownerObj.owner} ${ownerObj.player ? `(${ownerObj.player})` : ''}`;
+            }
+
+            const cell = document.getElementById(`cell-${hDigit}-${aDigit}`);
+            if (cell) {
+                const badge = document.createElement('span');
+                badge.className = `badge badge-${qKey} q-badge-element`;
+                badge.innerText = badgeLabel;
+                cell.appendChild(badge);
+                cell.style.backgroundColor = "#fefce8"; 
+            }
+        }
+
+        function clearBadges() {
+            document.querySelectorAll('.q-badge-element').forEach(el => el.remove());
+            for(let h=0; h<10; h++){
+                for(let a=0; a<10; a++){
+                    const cell = document.getElementById(`cell-${h}-${a}`);
+                    if(cell) cell.style.backgroundColor = "transparent";
+                }
+            }
+        }
+
+        buildEmptyGrid();
+        loadCSVAutomatically();
+        fetchLionsSchedule();
+        setInterval(fetchLiveScores, 60000); 
+    </script>
+</body>
+</html>
