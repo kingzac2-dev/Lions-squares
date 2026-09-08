@@ -164,14 +164,12 @@
         function buildBoardForGame() {
             if (!currentGameId || rawSquareEntries.length === 0) return;
 
-            // Generate identical shuffle logic based on the ESPN Game ID
             let randomGen = seededRandom(currentGameId.toString());
             let coordinates = [];
             for (let h = 0; h < 10; h++) {
                 for (let a = 0; a < 10; a++) coordinates.push({ home: h, away: a });
             }
 
-            // Shuffle based on the Game ID
             for (let i = coordinates.length - 1; i > 0; i--) {
                 const j = Math.floor(randomGen() * (i + 1));
                 [coordinates[i], coordinates[j]] = [coordinates[j], coordinates[i]];
@@ -258,6 +256,8 @@
                 const awayTeam = comp.competitors.find(c => c.homeAway === 'away');
                 const homeTeam = comp.competitors.find(c => c.homeAway === 'home');
                 const status = comp.status;
+                const currentPeriod = status.period;
+                const isCompleted = status.type.completed;
                 
                 document.getElementById('sb-away-team').innerText = awayTeam.team.abbreviation || "AWAY";
                 document.getElementById('sb-home-team').innerText = homeTeam.team.abbreviation || "HOME";
@@ -267,28 +267,60 @@
 
                 clearBadges();
 
+                // Reset text cleanly when checking a new game
+                ['q1', 'q2', 'q3', 'final'].forEach(q => {
+                    document.getElementById(`${q}-score`).innerText = "0-0";
+                    document.getElementById(`${q}-winner`).innerText = "Pending";
+                });
+
                 const aLines = awayTeam.linescores || [];
                 const hLines = homeTeam.linescores || [];
                 let aTotal = 0, hTotal = 0;
                 
+                // Quarter 1 Logic
                 if (aLines.length >= 1) {
                     aTotal += parseInt(aLines[0].displayValue || aLines[0].value || 0); 
                     hTotal += parseInt(hLines[0].displayValue || hLines[0].value || 0);
-                    processQuarterWin(hTotal, aTotal, "q1", "Q1");
+                    if (currentPeriod > 1 || isCompleted) {
+                        processQuarterWin(hTotal, aTotal, "q1", "Q1");
+                    } else {
+                        document.getElementById("q1-score").innerText = `${aTotal}-${hTotal}`;
+                        document.getElementById("q1-winner").innerText = "In Progress";
+                    }
                 }
+                
+                // Quarter 2 Logic
                 if (aLines.length >= 2) {
                     aTotal += parseInt(aLines[1].displayValue || aLines[1].value || 0); 
                     hTotal += parseInt(hLines[1].displayValue || hLines[1].value || 0);
-                    processQuarterWin(hTotal, aTotal, "q2", "Q2");
+                    if (currentPeriod > 2 || isCompleted) {
+                        processQuarterWin(hTotal, aTotal, "q2", "Q2");
+                    } else if (currentPeriod === 2) {
+                        document.getElementById("q2-score").innerText = `${aTotal}-${hTotal}`;
+                        document.getElementById("q2-winner").innerText = "In Progress";
+                    }
                 }
+                
+                // Quarter 3 Logic
                 if (aLines.length >= 3) {
                     aTotal += parseInt(aLines[2].displayValue || aLines[2].value || 0); 
                     hTotal += parseInt(hLines[2].displayValue || hLines[2].value || 0);
-                    processQuarterWin(hTotal, aTotal, "q3", "Q3");
+                    if (currentPeriod > 3 || isCompleted) {
+                        processQuarterWin(hTotal, aTotal, "q3", "Q3");
+                    } else if (currentPeriod === 3) {
+                        document.getElementById("q3-score").innerText = `${aTotal}-${hTotal}`;
+                        document.getElementById("q3-winner").innerText = "In Progress";
+                    }
                 }
-                if (status.type.completed) {
+                
+                // Final Score Logic
+                document.getElementById("final-score").innerText = `${awayTeam.score || 0}-${homeTeam.score || 0}`;
+                if (isCompleted) {
                     processQuarterWin(parseInt(homeTeam.score || 0), parseInt(awayTeam.score || 0), "final", "Final");
+                } else if (status.type.state === 'in') {
+                    document.getElementById("final-winner").innerText = "In Progress";
                 }
+
             } catch (error) {}
         }
 
