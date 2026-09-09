@@ -3,92 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lions Football Squares</title>
+    <title>HHC & Lions Football Squares</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        table { border-collapse: collapse; width: 100%; }
-        td, th { border: 1px solid #d1d5db; width: 9%; height: 75px; text-align: center; position: relative; }
-        th { background-color: #f3f4f6; font-weight: bold; font-size: 1.2rem; }
-        .grid-header-away { background-color: #1e3a8a; color: white; }
-        .grid-header-home { background-color: #991b1b; color: white; }
-        .badge { position: absolute; font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 999px; color: white; }
-        .badge-q1 { top: 2px; right: 2px; background-color: #3b82f6; } 
-        .badge-q2 { bottom: 2px; right: 2px; background-color: #22c55e; } 
-        .badge-q3 { top: 2px; left: 2px; background-color: #eab308; color: black; } 
+        /* Base Dark Theme & Fonts */
+        body { background-color: #09090b; color: #f4f4f5; }
+        .sports-font { font-family: 'Teko', sans-serif; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* Grid Styling */
+        table { border-collapse: collapse; width: 100%; background-color: #18181b; }
+        td, th { border: 1px solid #3f3f46; width: 9%; height: 75px; text-align: center; position: relative; }
+        th { font-weight: bold; font-size: 1.8rem; font-family: 'Teko', sans-serif; }
+        
+        /* Team Colors */
+        .grid-header-away { background-color: #0076B6; color: white; border: 1px solid #005a8c; } /* Lions Honolulu Blue */
+        .grid-header-home { background-color: #B0B7BC; color: #000000; border: 1px solid #71717a; } /* HHC Silver */
+        
+        /* Grid Cells */
+        .owner-name { font-size: 0.9rem; font-weight: bold; color: #e4e4e7; text-transform: uppercase; }
+        .player-name { font-size: 0.75rem; color: #a1a1aa; font-style: italic; }
+        .unsold-name { color: #52525b; }
+        
+        /* Winning Badges */
+        .badge { position: absolute; font-size: 0.75rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; color: white; border: 1px solid rgba(255,255,255,0.2); }
+        .badge-q1 { top: 2px; right: 2px; background-color: #0076B6; } 
+        .badge-q2 { bottom: 2px; right: 2px; background-color: #10b981; } 
+        .badge-q3 { top: 2px; left: 2px; background-color: #f59e0b; color: black; } 
         .badge-final { bottom: 2px; left: 2px; background-color: #ef4444; } 
+        
+        /* Winner Cell Highlight */
+        .winning-cell { background-color: rgba(0, 118, 182, 0.2) !important; border: 2px solid #0076B6 !important; }
     </style>
 </head>
-<body class="bg-gray-100 font-sans p-4 min-h-screen">
+<body class="p-4 min-h-screen">
 
     <div class="max-w-screen-2xl mx-auto flex flex-col xl:flex-row gap-6">
         
         <!-- Left Side: Controls & Scoreboard -->
         <div class="xl:w-1/4 flex flex-col gap-6">
             
-            <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-blue-600">
-                <h1 class="text-2xl font-bold mb-4 text-blue-900">Lions Squares</h1>
+            <!-- Setup Panel -->
+            <div class="bg-zinc-900 p-6 rounded-lg shadow-2xl border-t-4" style="border-top-color: #B0B7BC;">
+                <h1 class="text-4xl font-bold mb-2 sports-font text-white flex items-center gap-2">
+                    <span>🏒 2017 HHC</span>
+                </h1>
+                <h2 class="text-3xl font-bold mb-4 sports-font" style="color: #0076B6;">
+                    🦁 LIONS SQUARES
+                </h2>
                 
                 <div class="mb-4">
-                    <label class="block text-sm font-bold mb-2">Select Lions Game</label>
-                    <select id="game-select" class="w-full border p-2 rounded bg-gray-50" onchange="gameSelected()">
+                    <label class="block text-sm font-bold mb-2 text-zinc-400 uppercase tracking-wider">Select Matchup</label>
+                    <select id="game-select" class="w-full border border-zinc-700 p-2 rounded bg-zinc-950 text-white focus:outline-none focus:border-blue-500" onchange="gameSelected()">
                         <option value="">Fetching schedule from ESPN...</option>
                     </select>
                 </div>
-                <div class="text-sm text-gray-600 italic">
-                    Grid numbers are automatically shuffled and synchronized for all players based on the selected game.
+                <div class="text-xs text-zinc-500 italic border-l-2 border-zinc-700 pl-2">
+                    Numbers are locked and synchronized based on the game ID.
                 </div>
             </div>
 
             <!-- Live Scoreboard Panel -->
-            <div class="bg-white p-6 rounded-lg shadow-lg border-t-4 border-gray-800 hidden" id="scoreboard-panel">
-                <h2 class="text-xl font-bold text-center mb-2">Game Scoreboard</h2>
-                <div class="text-center text-gray-600 text-sm mb-4" id="game-status">Loading status...</div>
+            <div class="bg-zinc-900 p-6 rounded-lg shadow-2xl border-t-4 hidden" id="scoreboard-panel" style="border-top-color: #0076B6;">
+                <h2 class="text-3xl font-bold text-center mb-1 sports-font tracking-wide">SCOREBOARD</h2>
+                <div class="text-center text-zinc-400 text-xs uppercase tracking-widest mb-4 font-bold" id="game-status">Loading status...</div>
                 
-                <div class="flex justify-between items-center mb-6 px-4">
+                <div class="flex justify-between items-center mb-6 px-2 bg-zinc-950 p-4 rounded-lg border border-zinc-800">
                     <div class="text-center w-1/2">
-                        <div class="text-sm font-bold text-gray-500">AWAY</div>
-                        <div class="text-2xl font-bold" id="sb-away-team">TEAM</div>
-                        <div class="text-4xl font-bold text-blue-800 mt-1" id="sb-away-score">0</div>
+                        <div class="text-xs font-bold text-zinc-500 uppercase tracking-widest">AWAY</div>
+                        <div class="text-3xl sports-font text-white" id="sb-away-team">TEAM</div>
+                        <div class="text-5xl sports-font mt-1" style="color: #0076B6;" id="sb-away-score">0</div>
                     </div>
-                    <div class="text-2xl font-bold text-gray-300">-</div>
+                    <div class="text-2xl font-bold text-zinc-700">-</div>
                     <div class="text-center w-1/2">
-                        <div class="text-sm font-bold text-gray-500">HOME</div>
-                        <div class="text-2xl font-bold" id="sb-home-team">TEAM</div>
-                        <div class="text-4xl font-bold text-red-800 mt-1" id="sb-home-score">0</div>
+                        <div class="text-xs font-bold text-zinc-500 uppercase tracking-widest">HOME</div>
+                        <div class="text-3xl sports-font text-white" id="sb-home-team">TEAM</div>
+                        <div class="text-5xl sports-font mt-1" style="color: #B0B7BC;" id="sb-home-score">0</div>
                     </div>
                 </div>
 
-                <h3 class="font-bold text-gray-700 border-b pb-1 mb-2">Quarter Winners</h3>
+                <h3 class="font-bold text-zinc-400 uppercase tracking-wider text-sm border-b border-zinc-700 pb-2 mb-3">Quarter Winners</h3>
                 <ul class="text-sm space-y-3">
-                    <li class="flex items-center justify-between">
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span> Q1 (<span id="q1-score">0-0</span>)</span>
-                        <span class="font-bold text-right" id="q1-winner">Pending</span>
+                    <li class="flex items-center justify-between bg-zinc-950 p-2 rounded border border-zinc-800">
+                        <span class="flex items-center gap-2 font-bold"><span class="w-3 h-3 rounded-full" style="background-color: #0076B6;"></span> Q1 (<span id="q1-score">0-0</span>)</span>
+                        <span class="font-bold text-right text-blue-400" id="q1-winner">Pending</span>
                     </li>
-                    <li class="flex items-center justify-between">
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span> Q2 (<span id="q2-score">0-0</span>)</span>
-                        <span class="font-bold text-right" id="q2-winner">Pending</span>
+                    <li class="flex items-center justify-between bg-zinc-950 p-2 rounded border border-zinc-800">
+                        <span class="flex items-center gap-2 font-bold"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> Q2 (<span id="q2-score">0-0</span>)</span>
+                        <span class="font-bold text-right text-emerald-400" id="q2-winner">Pending</span>
                     </li>
-                    <li class="flex items-center justify-between">
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-yellow-400"></span> Q3 (<span id="q3-score">0-0</span>)</span>
-                        <span class="font-bold text-right" id="q3-winner">Pending</span>
+                    <li class="flex items-center justify-between bg-zinc-950 p-2 rounded border border-zinc-800">
+                        <span class="flex items-center gap-2 font-bold"><span class="w-3 h-3 rounded-full bg-amber-500"></span> Q3 (<span id="q3-score">0-0</span>)</span>
+                        <span class="font-bold text-right text-amber-400" id="q3-winner">Pending</span>
                     </li>
-                    <li class="flex items-center justify-between">
-                        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span> Final (<span id="final-score">0-0</span>)</span>
-                        <span class="font-bold text-right" id="final-winner">Pending</span>
+                    <li class="flex items-center justify-between bg-zinc-950 p-2 rounded border border-zinc-800">
+                        <span class="flex items-center gap-2 font-bold"><span class="w-3 h-3 rounded-full bg-red-500"></span> FINAL (<span id="final-score">0-0</span>)</span>
+                        <span class="font-bold text-right text-red-400" id="final-winner">Pending</span>
                     </li>
                 </ul>
             </div>
         </div>
 
         <!-- Right Side: The Grid -->
-        <div class="xl:w-3/4 bg-white p-6 rounded-lg shadow-lg overflow-x-auto">
-            <h2 class="text-xl font-bold text-center mb-1">Football Squares Grid</h2>
-            <div class="text-center text-sm mb-4">
-                <span class="text-blue-800 font-bold">Top Axis: Away Team</span> | <span class="text-red-800 font-bold">Left Axis: Home Team</span>
+        <div class="xl:w-3/4 bg-zinc-900 p-6 rounded-lg shadow-2xl border border-zinc-800 overflow-x-auto">
+            <div class="flex justify-between items-end mb-4">
+                <div>
+                    <h2 class="text-3xl font-bold sports-font text-white tracking-wide">THE GRID</h2>
+                </div>
+                <div class="text-right text-xs uppercase font-bold tracking-widest bg-zinc-950 p-2 rounded border border-zinc-800">
+                    <span style="color: #0076B6;">Top: Away</span> <span class="text-zinc-600 mx-2">|</span> <span style="color: #B0B7BC;">Left: Home</span>
+                </div>
             </div>
             
-            <table id="squares-grid">
+            <table id="squares-grid" class="shadow-lg">
                 <!-- Javascript builds the grid here -->
             </table>
         </div>
@@ -103,18 +131,18 @@
         function buildEmptyGrid() {
             const table = document.getElementById('squares-grid');
             table.innerHTML = ''; 
-            let headerRow = '<tr><td class="bg-gray-200 border-none"></td>';
-            for (let i = 0; i < 10; i++) headerRow += `<th class="grid-header-away">${i}</th>`;
+            let headerRow = '<tr><td style="background-color: #09090b; border: none;"></td>';
+            for (let i = 0; i < 10; i++) headerRow += `<th class="grid-header-away shadow-inner">${i}</th>`;
             headerRow += '</tr>';
             table.innerHTML += headerRow;
 
             for (let homeNum = 0; homeNum < 10; homeNum++) {
-                let row = `<tr><th class="grid-header-home">${homeNum}</th>`;
+                let row = `<tr><th class="grid-header-home shadow-inner">${homeNum}</th>`;
                 for (let awayNum = 0; awayNum < 10; awayNum++) {
                     row += `
                         <td id="cell-${homeNum}-${awayNum}">
-                            <div class="text-sm font-bold text-gray-800" id="owner-${homeNum}-${awayNum}"></div>
-                            <div class="text-xs text-gray-500 italic" id="player-${homeNum}-${awayNum}"></div>
+                            <div class="owner-name" id="owner-${homeNum}-${awayNum}"></div>
+                            <div class="player-name" id="player-${homeNum}-${awayNum}"></div>
                         </td>
                     `;
                 }
@@ -123,7 +151,6 @@
             }
         }
 
-        // Smart Seeded Randomizer ensuring everyone sees the exact same board for the same game
         function seededRandom(seedStr) {
             let h = 1779033703 ^ seedStr.length;
             for(let i = 0; i < seedStr.length; i++) {
@@ -185,9 +212,9 @@
                 const playerEl = document.getElementById(`player-${coord.home}-${coord.away}`);
                 
                 if(entry.owner === "Unsold") {
-                    ownerEl.classList.replace("text-gray-800", "text-gray-400");
+                    ownerEl.classList.add("unsold-name");
                 } else {
-                    ownerEl.classList.replace("text-gray-400", "text-gray-800");
+                    ownerEl.classList.remove("unsold-name");
                 }
                 if (ownerEl) ownerEl.innerText = entry.owner;
                 if (playerEl) playerEl.innerText = entry.player;
@@ -196,13 +223,9 @@
 
         async function fetchLionsSchedule() {
             const select = document.getElementById('game-select');
-            
-            // --- NEW: SMART CURRENT SEASON CALCULATOR ---
             const now = new Date();
-            const currentMonth = now.getMonth(); // 0 is January, 11 is December
+            const currentMonth = now.getMonth(); 
             const currentYear = now.getFullYear();
-            
-            // If it is January or February, we are still finishing last year's season
             const currentSeason = (currentMonth < 3) ? currentYear - 1 : currentYear;
 
             let allLionsGames = [];
@@ -213,16 +236,10 @@
                 if (data.events && data.events.length > 0) {
                     allLionsGames = data.events;
                 }
-            } catch (error) {
-                console.error(`Could not fetch schedule for ${currentSeason}:`, error);
-            }
+            } catch (error) {}
 
             select.innerHTML = `<option value="">-- Select a Game (${currentSeason} Season) --</option>`;
-            
-            if (allLionsGames.length === 0) {
-                select.innerHTML = '<option value="">No games found.</option>';
-                return;
-            }
+            if (allLionsGames.length === 0) return;
 
             allLionsGames.sort((a, b) => new Date(a.date) - new Date(b.date));
             let autoSelectId = null;
@@ -280,7 +297,6 @@
 
                 clearBadges();
 
-                // Reset text cleanly when checking a new game
                 ['q1', 'q2', 'q3', 'final'].forEach(q => {
                     document.getElementById(`${q}-score`).innerText = "0-0";
                     document.getElementById(`${q}-winner`).innerText = "Pending";
@@ -290,46 +306,42 @@
                 const hLines = homeTeam.linescores || [];
                 let aTotal = 0, hTotal = 0;
                 
-                // Quarter 1 Logic
                 if (aLines.length >= 1) {
                     aTotal += parseInt(aLines[0].displayValue || aLines[0].value || 0); 
                     hTotal += parseInt(hLines[0].displayValue || hLines[0].value || 0);
                     if (currentPeriod > 1 || isCompleted) {
-                        processQuarterWin(hTotal, aTotal, "q1", "Q1");
+                        processQuarterWin(hTotal, aTotal, "q1", "Q1 🏈");
                     } else {
                         document.getElementById("q1-score").innerText = `${aTotal}-${hTotal}`;
                         document.getElementById("q1-winner").innerText = "In Progress";
                     }
                 }
                 
-                // Quarter 2 Logic
                 if (aLines.length >= 2) {
                     aTotal += parseInt(aLines[1].displayValue || aLines[1].value || 0); 
                     hTotal += parseInt(hLines[1].displayValue || hLines[1].value || 0);
                     if (currentPeriod > 2 || isCompleted) {
-                        processQuarterWin(hTotal, aTotal, "q2", "Q2");
+                        processQuarterWin(hTotal, aTotal, "q2", "Q2 🏈");
                     } else if (currentPeriod === 2) {
                         document.getElementById("q2-score").innerText = `${aTotal}-${hTotal}`;
                         document.getElementById("q2-winner").innerText = "In Progress";
                     }
                 }
                 
-                // Quarter 3 Logic
                 if (aLines.length >= 3) {
                     aTotal += parseInt(aLines[2].displayValue || aLines[2].value || 0); 
                     hTotal += parseInt(hLines[2].displayValue || hLines[2].value || 0);
                     if (currentPeriod > 3 || isCompleted) {
-                        processQuarterWin(hTotal, aTotal, "q3", "Q3");
+                        processQuarterWin(hTotal, aTotal, "q3", "Q3 🏈");
                     } else if (currentPeriod === 3) {
                         document.getElementById("q3-score").innerText = `${aTotal}-${hTotal}`;
                         document.getElementById("q3-winner").innerText = "In Progress";
                     }
                 }
                 
-                // Final Score Logic
                 document.getElementById("final-score").innerText = `${awayTeam.score || 0}-${homeTeam.score || 0}`;
                 if (isCompleted) {
-                    processQuarterWin(parseInt(homeTeam.score || 0), parseInt(awayTeam.score || 0), "final", "Final");
+                    processQuarterWin(parseInt(homeTeam.score || 0), parseInt(awayTeam.score || 0), "final", "FINAL 🏒");
                 } else if (status.type.state === 'in') {
                     document.getElementById("final-winner").innerText = "In Progress";
                 }
@@ -353,7 +365,7 @@
                 badge.className = `badge badge-${qKey} q-badge-element`;
                 badge.innerText = badgeLabel;
                 cell.appendChild(badge);
-                cell.style.backgroundColor = "#fefce8"; 
+                cell.classList.add("winning-cell");
             }
         }
 
@@ -362,7 +374,7 @@
             for(let h=0; h<10; h++){
                 for(let a=0; a<10; a++){
                     const cell = document.getElementById(`cell-${h}-${a}`);
-                    if(cell) cell.style.backgroundColor = "transparent";
+                    if(cell) cell.classList.remove("winning-cell");
                 }
             }
         }
